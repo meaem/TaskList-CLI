@@ -1,5 +1,11 @@
 package tasklist
 
+import kotlinx.datetime.*
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+
 typealias MOption = Menu.MenuOption
 
 class TaskList() {
@@ -21,8 +27,8 @@ class TaskList() {
 
 }
 
-class Task(description: String) {
-    var description = description
+class Task(description: String, val date: Long, val priority: Char) {
+    var description = "   $description"
         private set
 
     val isEmpty: Boolean
@@ -31,11 +37,15 @@ class Task(description: String) {
 
     fun addDescLine(line: String) {
         if (line.isNotBlank())
-            description += "\n    $line"
+            description += "\n   $line"
     }
 
     override fun toString(): String {
-        return description
+        val dt = LocalDateTime.ofEpochSecond(date, 0, ZoneOffset.UTC)
+        val date = dt.toLocalDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+        val time = dt.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm"))
+
+        return "$date $time $priority\n$description"
     }
 }
 
@@ -54,11 +64,17 @@ fun main() {
         val choice = readln().lowercase()
         when (choice) {
             "add" -> {
+                val p = readTaskPriority()
+                val date = readDate()
+
+                val time = readTime()
+
+                val dt = LocalDateTime(date.year, date.month, date.dayOfMonth, time.hour, time.minute, time.second)
                 println("Input a new task (enter a blank line to end):")
                 var line = readln().trimIndent()
 //                var desc = ""
                 if (line.isNotBlank()) {
-                    val t = Task(line)
+                    val t = Task(line, dt.toInstant(TimeZone.UTC).epochSeconds, p)
 
                     do {
                         line = readln().trimIndent()
@@ -88,6 +104,71 @@ fun main() {
             }
         }
     }
+}
+
+fun readTime(): LocalTime {
+    var correct = false
+    println("Input the time (hh:mm):")
+    var tmp = readln()
+    while (!correct) {
+        while (!"\\d\\d?:\\d\\d?(:\\d\\d?)?".toRegex().matches(tmp)) {
+            println("The input time is invalid")
+            println("Input the time (hh:mm):")
+            tmp = readln()
+        }
+        tmp = tmp.split(":")
+            .map { it.padStart(2, '0') }
+            .joinToString(":")
+        try {
+            LocalTime.parse(tmp)
+            correct=true
+        } catch (ex: Exception) {
+            correct=false
+            println("The input time is invalid")
+            println("Input the time (hh:mm):")
+            tmp = readln()
+        }
+    }
+    return LocalTime.parse(tmp)
+}
+
+fun readDate(): LocalDate {
+    var correct = false
+    println("Input the date (yyyy-mm-dd):")
+    var tmp = readln()
+    while (!correct) {
+
+        while (!"\\d{4}-\\d\\d?-\\d\\d?".toRegex().matches(tmp)) {
+            println("The input date is invalid")
+            println("Input the date (yyyy-mm-dd):")
+            tmp = readln()
+        }
+        tmp = tmp.split("-")
+            .mapIndexed { index, s -> if (index > 0) s.padStart(2, '0') else s }
+            .joinToString("-")
+        try {
+             LocalDate.parse(tmp)
+            correct=true
+        } catch (ex: Exception) {
+            correct=false
+            println("The input date is invalid")
+            println("Input the date (yyyy-mm-dd):")
+            tmp = readln()
+        }
+    }
+    return LocalDate.parse(tmp)
+}
+
+fun readTaskPriority(): Char {
+    val priorities = listOf("C", "H", "N", "L")
+    println("Input the task priority (${priorities.joinToString(", ")}):")
+    var tmp = readln()
+    while (tmp.uppercase() !in priorities) {
+        println("Input the task priority (${priorities.joinToString(", ")}):")
+        tmp = readln()
+    }
+
+    return tmp.first()
 }
 
 
