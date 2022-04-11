@@ -10,21 +10,102 @@ import java.time.format.DateTimeFormatter
 
 
 class TaskList() {
+    companion object {
+        val horizontalLine = "+----+------------+-------+---+---+--------------------------------------------+"
+        val columns = "|%s| %s | %s | %s | %s |%s|"
+        val headerColumne =
+            columns.format(
+                "N".padEnd(3).padStart(4),
+                "   Date   ",
+                "Time ",
+                "P",
+                "D",
+                "                   Task                     "
+            )
+        val header = "$horizontalLine\n$headerColumne\n$horizontalLine"
+
+        fun printHeader() {
+            println(header)
+        }
+
+        fun printTask(taskId: Int, t: Task) {
+            val dt = Instant.fromEpochSeconds(t.date)
+                .toLocalDateTime(TimeZone.UTC) //LocalDateTime .ofEpochSecond(date, 0, ZoneOffset.UTC)
+
+            val currentDate = Clock.System.now().toLocalDateTime(TimeZone.of("UTC+0")).date
+            val numberOfDays = currentDate.daysUntil(dt.date)
+            val due = if (numberOfDays == 0) "T" else if (numberOfDays > 0) "I" else "O"
+
+            val priorityColorString = when (t.priority) {
+                'C' -> "\u001B[101m \u001B[0m"
+                'H' -> "\u001B[103m \u001B[0m"
+                'N' -> "\u001B[102m \u001B[0m"
+                'L' -> "\u001B[104m \u001B[0m"
+                else -> " "
+            }
+            val dueColorString = when (due) {
+                "I" -> "\u001B[102m \u001B[0m"
+                "T" -> "\u001B[103m \u001B[0m"
+                "O" -> "\u001B[101m \u001B[0m"
+                else -> " "
+            }
+            val dd = t.description.lines().map {
+                if (it.length > 44) it.substring(0, 44) + "\n" + it.substring(44) else it
+            }.joinToString("\n").lines()
+
+            for (line in dd.withIndex()) {
+                val taskColumn = if (line.index == 0) {
+                    columns.format(
+                        "${taskId + 1}".padEnd(3).padStart(4),
+                        t.dateString(),
+                        t.timeString(),
+                        priorityColorString,
+                        dueColorString,
+                        line.value.padEnd(44)
+                    )
+
+                } else {
+                    columns.format(
+                        " ".padEnd(3).padStart(4),
+                        " ".repeat(10),
+                        " ".repeat(5),
+                        " ",
+                        " ",
+                        line.value.padEnd(44)
+                    )
+
+                }
+
+
+                val header = taskColumn
+                println(header)
+            }
+            println(horizontalLine)
+        }
+    }
+
     val list = mutableListOf<Task>()
 //    private var lastIndex = 0;
 
     fun add(t: Task) {
 //        lastIndex++
-        list.add( t)
+        list.add(t)
     }
 
     fun print() {
+
         if (isEmpty()) {
             println("No tasks have been input")
         } else {
-            println(list.withIndex().joinToString("\n") {
-                "${it.index+1}".padEnd(3) + "${it.value}\n"
-            })
+            printHeader()
+//            println(list.withIndex().joinToString("\n") {
+//                "${it.index + 1}".padEnd(3) + "${it.value}\n"
+//            })
+            for (t in list.withIndex()) {
+                printTask(t.index, t.value)
+            }
+
+//            println(list.joinToString("\n"))
         }
 
 
@@ -42,31 +123,49 @@ class TaskList() {
 
 }
 
-class Task(description: String, var date: Long, var priority: Char) {
+class Task(description: String, var date: Long, priority: Char) {
 
-
-    var description = description.lines().map { "   $it" }.joinToString("\n")  //"   ${lines.first()}"
+    var priority = priority.uppercase().first()
+    var description = ""
+        // description.lines().joinToString("\n")  //"   ${lines.first()}"
         private set
 
     val isEmpty: Boolean
         get() = description.isBlank()
 
+    init {
+        updateDescription(description)
+    }
 
-    private fun addDescLine(line: String) {
-        if (line.isNotBlank())
-            description += "\n   $line"
+//    private fun addDescLine(line: String) {
+//        if (line.isNotBlank())
+//            description += "\n   $line"
+//    }
+
+    fun dateString(): String? {
+        val dt = Instant.fromEpochSeconds(date)
+            .toLocalDateTime(TimeZone.UTC) //LocalDateTime .ofEpochSecond(date, 0, ZoneOffset.UTC)
+        return dt.toJavaLocalDateTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+    }
+
+    fun timeString(): String? {
+        val dt = Instant.fromEpochSeconds(date)
+            .toLocalDateTime(TimeZone.UTC) //LocalDateTime .ofEpochSecond(date, 0, ZoneOffset.UTC)
+        return dt.toJavaLocalDateTime().format(DateTimeFormatter.ofPattern("HH:mm"))
+
     }
 
     override fun toString(): String {
-        val dt = Instant.fromEpochSeconds(date).toLocalDateTime(TimeZone.UTC) //LocalDateTime .ofEpochSecond(date, 0, ZoneOffset.UTC)
-        val date =  dt.toJavaLocalDateTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-        val time = dt.toJavaLocalDateTime().format(DateTimeFormatter.ofPattern("HH:mm"))
+        val dt = Instant.fromEpochSeconds(date)
+            .toLocalDateTime(TimeZone.UTC) //LocalDateTime .ofEpochSecond(date, 0, ZoneOffset.UTC)
+//        val date = dt.toJavaLocalDateTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+//        val time = dt.toJavaLocalDateTime().format(DateTimeFormatter.ofPattern("HH:mm"))
 
         val currentDate = Clock.System.now().toLocalDateTime(TimeZone.of("UTC+0")).date
         val numberOfDays = currentDate.daysUntil(dt.date)
-        val due = if (numberOfDays ==0 ) "T" else if (numberOfDays > 0) "I" else "O"
+        val due = if (numberOfDays == 0) "T" else if (numberOfDays > 0) "I" else "O"
 
-        return "$date $time $priority $due\n$description"
+        return "${dateString()} ${timeString()} $priority $due\n$description"
     }
 
     fun updateDate(year: Int, month: Month, dayOfMonth: Int): Boolean {
@@ -97,7 +196,7 @@ class Task(description: String, var date: Long, var priority: Char) {
 
     fun updateDescription(newP: String): Boolean {
         try {
-            description = newP.lines().map { "   $it" }.joinToString("\n")
+            description = newP.lines().joinToString("\n")
             return true
         } catch (ex: Exception) {
             return false
@@ -112,7 +211,7 @@ fun main() {
     var running = true
 
 //   val menu = Menu(optionsList,"Input an action (add, print, end):")
-
+//println("\u001B[101m \u001B[0m")
     val tasks = TaskList()
     while (running) {
         println("Input an action (add, print, edit, delete, end):")
@@ -150,7 +249,7 @@ fun main() {
                         try {
                             println("Input the task number (1-${tasks.lastIndex() + 1}):")
                             val taskId = readln().toInt()
-                            if (taskId - 1 > tasks.lastIndex() || taskId -1 < 0) {
+                            if (taskId - 1 > tasks.lastIndex() || taskId - 1 < 0) {
                                 throw IllegalArgumentException()
                             }
 
@@ -213,7 +312,7 @@ fun main() {
                             }
                             tasks.delete(taskId - 1)
                             println("The task is deleted")
-                            taskDeleted =true
+                            taskDeleted = true
 
                         } catch (ex: Exception) {
                             println("Invalid task number")
@@ -253,7 +352,8 @@ fun readDescription(): String {
 
 fun readTime(): LocalDateTime {
     var correct = false
-    val currdate = Clock.System.todayAt(TimeZone.UTC).toJavaLocalDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+    val currdate =
+        Clock.System.todayAt(TimeZone.UTC).toJavaLocalDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
 
     println("Input the time (hh:mm):")
     var tmp = readln()
