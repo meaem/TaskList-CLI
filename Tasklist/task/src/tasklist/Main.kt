@@ -1,6 +1,16 @@
 package tasklist
 
+import com.squareup.moshi.JsonReader
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.Types
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.datetime.*
+import okio.BufferedSource
+import java.io.BufferedInputStream
+import java.io.BufferedReader
+import java.io.File
+import java.io.FileInputStream
+import java.nio.charset.Charset
 import java.time.format.DateTimeFormatter
 
 //import java.time.LocalDateTime
@@ -10,6 +20,9 @@ import java.time.format.DateTimeFormatter
 
 
 class TaskList() {
+    constructor(tlist: List<Task>) : this() {
+       list.addAll(tlist)
+    }
     companion object {
         val horizontalLine = "+----+------------+-------+---+---+--------------------------------------------+"
         val columns = "|%s| %s | %s | %s | %s |%s|"
@@ -212,7 +225,8 @@ fun main() {
 
 //   val menu = Menu(optionsList,"Input an action (add, print, end):")
 //println("\u001B[101m \u001B[0m")
-    val tasks = TaskList()
+
+    val tasks = loadTasks()
     while (running) {
         println("Input an action (add, print, edit, delete, end):")
 
@@ -236,11 +250,6 @@ fun main() {
 
                 println()
             }
-            "end" -> {
-                println("Tasklist exiting!")
-                running = false
-            }
-
             "edit" -> {
                 tasks.print()
                 if (!tasks.isEmpty()) {
@@ -322,12 +331,43 @@ fun main() {
                     }
                 }
             }
-
+            "end" -> {
+                println("Tasklist exiting!")
+                running = false
+                saveTasks(tasks)
+            }
             else -> {
                 println("The input action is invalid")
             }
         }
     }
+}
+
+fun loadTasks(): TaskList {
+    val jsonFile = File("tasklist.json")
+    if (jsonFile.exists()) {
+        val moshi = Moshi.Builder()
+            .add(KotlinJsonAdapterFactory())
+            .build()
+        val type = Types.newParameterizedType (List::class.java,Task::class.java)
+
+        val taskListAdapter = moshi.adapter<List<Task>>( type)
+        val list = taskListAdapter.fromJson(jsonFile.readText())
+
+        return if (list != null) TaskList(list) else TaskList()
+    }else return TaskList()
+}
+
+fun saveTasks(taskList:TaskList) {
+    val jsonFile = File("tasklist.json")
+    val moshi = Moshi.Builder()
+        .add(KotlinJsonAdapterFactory())
+        .build()
+
+    val type = Types.newParameterizedType (List::class.java,Task::class.java)
+    val taskListAdapter = moshi.adapter<List<Task>>( type)
+    jsonFile.writeText(taskListAdapter.toJson(taskList.list))
+
 }
 
 fun readDescription(): String {
